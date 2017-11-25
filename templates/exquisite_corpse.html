@@ -1,0 +1,395 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+  <title>EXQUISITE CORPSE</title>
+  
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/1.3.6/socket.io.min.js"></script>
+
+  <style type="text/css">
+      
+            * { 
+                  border:none;
+                  margin:0;
+                  padding:0;
+              }
+
+            .mainHeader {
+                  font: larger Arno Pro, Tribun ADF Std, serif;
+                  font-style: italic;
+                  font-size: 24pt;
+                  letter-spacing: .06em;
+                  text-align: center;
+                  padding-top: 10px;
+            }
+
+            .prose {
+                  background: white;
+                  margin: 20px;
+                  padding: 20px;
+            }
+                      
+              #rightDiv {
+                  float: right;
+                  top:0px;
+                  left:0px;
+                  background-color: red;
+              }
+      
+              #innerContent {
+                  padding-left:10px;
+                  height: 500px;
+                  overflow: auto;
+                  background: rgb(72, 117, 131);
+              }
+      
+            body {
+               background:  rgb(150, 135, 113)
+            }
+
+            #leftDiv {
+                  background-color:blue;
+                  top:0px;
+                  left:0px;
+                  float: left;
+              }
+
+              #proseContent {
+                    background: rgb(150, 135, 113);
+                    padding-top: 20px;
+                    padding-left:30px;
+                    padding-right: 10px;
+              }
+
+              #proseWrite {
+                  background: rgb(238, 238, 232);
+                  overflow: hidden;
+                  padding: 0px;
+                  padding-right: 10px;
+                  padding-top: 10px;
+            }
+
+              .proseWriteBar {
+                  overflow: hidden;
+                  padding-top: 10px;
+                  padding-left:10px;
+              }
+
+              #inputPose { 
+                  width: 88%;
+                  line-height: 48px;
+                  padding-left: 10px;
+                  overflow: hidden;
+                  
+            }
+
+              #btnProseSubmit {
+                  float: right;
+                  width: 8%;
+              }
+
+              button {
+                    height: 50px;
+              }
+
+            input:focus,
+            select:focus,
+            textarea:focus,
+            button:focus {
+                  outline: none;
+            }
+
+            #proseBuild {
+                  background: rgb(238, 238, 232);
+                  margin-bottom: 10px;
+                  overflow: hidden;
+                  padding: 20px;
+                  padding-right: 10px;
+              }
+
+              #proseLines {
+                  height: 93%;
+                  width: 100%;
+              }
+
+
+              #proseLinesAdd {
+                    padding-top:20px;
+                    padding-left: 40px;
+                    padding-right:40px;
+                    text-align: center;
+                    font: larger Arno Pro, Tribun ADF Std, serif;
+              }
+              
+              .proseLine {
+                    padding-bottom: 20px;
+                    padding-top: 10px;
+
+              }
+
+              .controlBarRight {
+                    float: right;
+              }
+
+              #btnRetry {
+                    float:left;
+                    width: 50px;
+              }
+
+              #btnClearAll {
+                    width: 100px;
+                    margin-right: 2px;
+
+              }
+
+              #btnPublish {
+                    margin-left: 2px;
+                    width: 100px;
+              }
+
+              #instructions {
+                    text-align: center;
+                    font-style: italic;
+                    color: #6a6a6a;
+                    padding-top: 10px;
+                    visibility: visible;
+              }
+
+              .reload { font-family: Lucida Sans Unicode }
+
+      </style>
+            
+          
+  <script type="text/javascript" charset="utf-8">
+
+      var socket = io.connect('http://' + document.domain + ':' + location.port + "/eq");
+
+
+      socket.on('connect', function() {
+            console.log('connected');
+
+            $('#btnPublish').prop("disabled",true);
+            $('#btnProseSubmit').prop("disabled",true);
+            $('#btnRetry').prop("disabled",true);
+            $('#btnClearAll').prop("disabled",true);
+      });
+
+      socket.on('model_ready', function(data) {
+            // UNLOCK CONTROLS - READY FOR SUBMISSION...
+            console.log("A.I. status: " + data.status);
+            $('#btnPublish').prop("disabled",true);
+            $('#btnProseSubmit').prop("disabled",false);
+            $('#btnRetry').prop("disabled",false);
+            $('#btnClearAll').prop("disabled",true);
+      });
+
+
+      function sendLineToServer(new_line) {
+            socket.emit('line_submit', {data: new_line})
+      }
+
+      socket.on('line_append', function(data) {
+
+            $('#btnClearAll').prop("disabled",false);
+
+            // ADD NEW_LINE TO THE PROSE
+            $('#proseLinesAdd').append('<div class="proseLine">' + data.new_line + '</div>');  
+            console.log("incoming data:" + data.new_line);
+
+            totalLines = $("#proseLinesAdd > div").length;
+
+            if ( totalLines < 4 ) {
+                  if ( totalLines > 2) {
+                        $('#btnPublish').prop("disabled",false);
+                  }
+            } else {
+                  $('#btnPublish').prop("disabled",false);
+                  $('#btnProseSubmit').prop("disabled",true);
+            }
+
+      });
+
+
+      socket.on('disconnect', function() {
+            console.log('User Disconnected');
+            socket.disconnect();
+            socket.close();
+      });
+      
+
+      var lastSubmitted = "";
+
+      function getAllLines() {
+
+            buildString = "";
+
+            $('#proseLinesAdd').each(function( index, element ) {
+                if ( $(element).find('.proseLine').text().length > 0 ) {
+                      buildString += $(element).find('.proseLine').text() + " ";
+                  }
+            });
+
+            console.log("buildString: " + buildString)
+            return buildString;
+      }
+
+      function Refresh() {
+
+            totalLines = $("#proseLinesAdd > div").length;
+
+            if (totalLines > 0) {
+                  $('#proseLinesAdd').children().last().remove();
+            }
+
+            toSubmit = getAllLines();
+            sendLineToServer(toSubmit);
+            
+      }
+
+
+
+
+      var leftDiv, rightDiv, innerContent;
+      var proseBuild, proseWrite;
+
+
+      var data = [{
+            "analysisDataList": [{
+            "book_Id": 4,
+            "cancelled_request": 0,
+            "delivery_request": 0,
+            "return_request": 0,
+            "title": "Facts"
+            }, {
+            "book_Id": 5,
+            "cancelled_request": 0,
+            "delivery_request": 0,
+            "return_request": 0,
+            "title": "BlackBook"
+            }, {
+            "book_Id": 14,
+            "cancelled_request": 0,
+            "delivery_request": 0,
+            "return_request": 0,
+            "title": "CompleteRef"
+            }, {
+            "book_Id": 18,
+            "cancelled_request": 0,
+            "delivery_request": 0,
+            "return_request": 0,
+            "title": "Dummies"
+            }]
+      }];
+
+
+      function AddLineToBuild(new_line) {
+
+            document.querySelector("#inputPose").value = "";
+            if (new_line == "") { 
+                  return; 
+            }
+            $('#proseLinesAdd').append('<div class="proseLine">' + new_line + '</div>');            
+
+            totalLines = $("#proseLinesAdd > div").length;
+            if ( totalLines < 4 ) {
+                  if ( totalLines > 2) {
+                        $('#btnPublish').prop("disabled",false);
+                  }
+                  sendLineToServer(new_line);
+            } else {
+                  $('#btnPublish').prop("disabled",false);
+                  $('#btnProseSubmit').prop("disabled",true);
+            }
+      }
+
+      function resetProseBuild() {
+            lastSubmitted = "";
+            jQuery('#proseLinesAdd').html('');
+            $('#btnPublish').prop("disabled",true);
+            $('#btnProseSubmit').prop("disabled",false);
+            $('#btnClearAll').prop("disabled",true);
+      }
+
+      function SubmitFinishedProse() {
+      
+            var links = data[0].analysisDataList;
+            
+            for (var key in links) {
+            
+              $('#innerContent').append('<div class="prose"><img src="https://pbs.twimg.com/profile_images/691723916964827136/svO1LUZt_400x400.jpg"/><h1>' + links[key].title + '</h1></div>');            
+            }
+      }
+
+      function updateLayout() {
+
+            var width = window.innerWidth
+                  || document.documentElement.clientWidth
+                  || document.body.clientWidth;
+
+            var height = window.innerHeight
+                  || document.documentElement.clientHeight
+                  || document.body.clientHeight;
+
+
+            leftDiv.style.width = String(width * .58) + 'px';
+            rightDiv.style.width = String(width * .4) + 'px';
+
+            proseBuild.style.height = String(height*.8) + 'px';
+            proseWrite.style.height = String(height * .08) + 'px';
+
+            innerContent.style.height = String(height) + 'px';
+      }
+
+      function init(){      
+            leftDiv = document.getElementById('leftDiv');
+            rightDiv = document.getElementById('rightDiv');
+            innerContent = document.getElementById('innerContent');
+            proseBuild = document.getElementById('proseBuild');
+            proseWrite = document.getElementById('proseWrite');
+            updateLayout();
+      } 
+
+      window.onload = function() { init(); };
+
+   </script>
+
+
+</head>
+  <body bgcolor="rgb(150, 135, 113)"  onresize="updateLayout()">
+            
+      <div id="leftDiv">
+            <div id="proseContent">
+
+                  <div id="proseBuild">
+                        <div id="proseLines">
+                              <h2 class="mainHeader">Exquisite Corpse Prose Generator</h2>
+                              <p id="instructions">Begin the story by typing a sentence below or refreshing on a clear page</br>will prompt Exquisite Corpse to suggest an opening line.</p>
+                              <div id="proseLinesAdd">                
+                              </div>                       
+                        </div>
+                        <div id="controlBar">
+                              <button id="btnRetry" onclick="Refresh()"><h2>
+                                          <span class=reload>&#x21bb;</span></h2>  
+                              </button>
+                              <span class="controlBarRight">
+                                    <button id="btnClearAll" onclick="resetProseBuild()">CLEAR ALL</button>                        
+                                    <button id="btnPublish" onclick="SubmitFinishedProse()" disabled="disabled">PUBLISH</button>                                                                                                                  
+                              </span>                            
+                        </div>
+
+                  </div>
+                        <div id="proseWrite">
+                              <span class="proseWriteBar">
+                                    <input id="inputPose" type="text" title="lineForSubmission" maxlength="125"/>
+                              </span>
+                              <button id="btnProseSubmit" onclick='AddLineToBuild(document.querySelector("#inputPose").value)'><b>&#8657;</b></button>                              
+                        </div>                  
+            </div>
+      </div>
+      
+      <div id="rightDiv">
+            <div id="innerContent"></div>                                
+      </div>
+            
+    </body>
+</html>
